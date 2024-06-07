@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.1.3/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.1.3/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.ckeditor.com/4.16.0/standard/ckeditor.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        .sidebar {
+            height: 100vh;
+            background-color: #343a40;
+            color: #fff;
+            padding-top: 20px;
+        }
+        .sidebar a {
+            color: #fff;
+            text-decoration: none;
+            display: block;
+            padding: 10px;
+        }
+        .sidebar a:hover {
+            background-color: #495057;
+        }
+        .content {
+            padding: 20px;
+            display: none;
+        }
+        .content.active {
+            display: block;
+        }
+        #visitChart {
+            width: 100%;
+            width: auto; /* Giới hạn chiều rộng tối đa của canvas */
+            max-height: 300px;
+        }
+
+        #linkClicksChart {
+            width: 100%;
+            width: auto; /* Giới hạn chiều rộng tối đa của canvas */
+            max-height: 300px;
+        }
+
+    </style>
+
+    <style>
+        .card {
+            background-color: #fff; /* Màu nền của thẻ */
+            border-radius: 8px; /* Bo tròn góc */
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1); /* Đổ bóng */
+            overflow: hidden; /* Ẩn phần nội dung thừa */
+            margin-top: 20px;
+        }
+        .card-header {
+            background-color: #fff0c8; /* Màu nền của tiêu đề */
+            color: #000000; /* Màu chữ của tiêu đề */
+            padding: 10px 15px; /* Đệm cho tiêu đề */
+            font-size: 18px; /* Cỡ chữ của tiêu đề */
+        }
+        .card-body {
+            padding: 15px; /* Đệm cho nội dung */
+        }
+        .card-title {
+            margin-bottom: 10px; /* Khoảng cách giữa tiêu đề và nội dung */
+        }
+        .card-text {
+            margin-bottom: 0; /* Khoảng cách cuối cùng của nội dung */
+        }
+        .content-wrapper {
+            overflow-y: auto; /* Cho phép cuộn theo chiều dọc nếu nội dung quá cao */
+            height: 100vh; /* Đặt chiều cao tối đa bằng với chiều cao của viewport */
+        }
+
+    </style>
+    
+
+</head>
+<body>
+    <div class="d-flex">
+        <div class="sidebar col-md-2">
+            <h2 class="text-center">Admin</h2>
+            <a href="#" onclick="showSection('dashboard')"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
+            <a href="#" onclick="showSection('content')"><i class="fas fa-file-alt"></i> Content</a>
+            <a href="#" onclick="showSection('header-content')"><i class="fas fa-tachometer-alt"></i>Header</a>
+            <a href="#" onclick="showSection('footer-content')"><i class="fas fa-users"></i>Footer</a>
+            <a href="#" onclick="showSection('company-info-content')"><i class="fas fa-cogs"></i>Company Info</a>
+            <select id="lang-select" class="form-control" style="width: auto; margin-bottom: 20px;" onchange="changeLanguage()">
+                <option value="vi">Tiếng Việt</option>
+                <option value="en">English</option>
+            </select>
+        </div>
+        
+        <div class="content-wrapper col-md-10">
+            <div id="dashboard" class="content">
+                <h2>Welcome to the admin dashboard. Here you can see an overview of the system.</h2>
+                <p><br></p>
+
+                <div id="post-stats" class="mt-4"></div>
+
+                <script>
+                document.addEventListener('DOMContentLoaded', function() {
+                    fetch('http://34.130.249.174:8080/api/stats/posts')
+                    .then(response => response.json())
+                    .then(data => {
+                        document.getElementById('post-stats').innerHTML = `
+                            <div class="card shadow-sm">
+                                <div class="card-header">
+                                    Thống kê bài viết
+                                </div>
+                                <div class="card-body">
+                                    <h5 class="card-title">Tổng số bài viết: ${data.total_posts}</h5>
+                                    <p class="card-text">Lượt xem trung bình mỗi bài viết: ${data.average_views.toFixed(2)}</p>
+                                </div>
+                            </div>
+                        `;
+                    });
+                });
+                </script>
+                <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+                <canvas id="visitChart" width="300" height="300"></canvas>
+                <script>
+                const backgroundColors = [
+                        'rgba(255, 99, 132, 0.2)',  // Màu đỏ
+                        'rgba(54, 162, 235, 0.2)',  // Màu xanh dương
+                        'rgba(255, 206, 86, 0.2)',  // Màu vàng
+                        'rgba(75, 192, 192, 0.2)',  // Màu xanh lục
+                        'rgba(153, 102, 255, 0.2)', // Màu tím
+                        'rgba(255, 159, 64, 0.2)'   // Màu cam
+                    ];
+                fetch('http://34.130.249.174:8080/api/visits')
+                .then(response => response.json())
+                .then(data => {
+                    const ctx = document.getElementById('visitChart').getContext('2d');
+                    const visitChart = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: data.map(item => item.page),
+                            datasets: [{
+                                label: '# of Visits',
+                                data: data.map(item => item.count),
+                                backgroundColor: backgroundColors, // Áp dụng mảng màu
+                                borderColor: data.map((item, index) => backgroundColors[index].replace('0.2', '1')), // Đậm hơn cho đường viền
+                                borderWidth: 1
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                y: {
+                                    beginAtZero: true
+                                }
+                            }
+                        }
+                    });
+                });
+                </script>
+                
+                <canvas id="linkClicksChart" width="400" height="400"></canvas>
+                <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+                <script>
+                document.addEventListener('DOMContentLoaded', function() {
+                    fetch('http://34.130.249.174:8080/api/get_clicks')
+                    .then(response => response.json())
+                    .then(data => {
+                        const ctx = document.getElementById('linkClicksChart').getContext('2d');
+                        const linkClicksChart = new Chart(ctx, {
+                            type: 'bar',
+                            data: {
+                                labels: data.map(item => item.link_type.replace('_link', '').charAt(0).toUpperCase() + item.link_type.replace('_link', '').slice(1)),
+                                datasets: [{
+                                    label: 'Số lần Click link',
+                                    data: data.map(item => item.count),
+                                    backgroundColor: [
+                                        'rgba(255, 99, 132, 0.2)',
+                                        'rgba(54, 162, 235, 0.2)'
+                                    ],
+                                    borderColor: [
+                                        'rgba(255, 99, 132, 1)',
+                                        'rgba(54, 162, 235, 1)'
+                                    ],
+                                    borderWidth: 1
+                                }]
+                            },
+                            options: {
+                                scales: {
+                                    y: {
+                                        beginAtZero: true
+                                    }
+                                }
+                            }
+                        });
+                    });
+                });
+                </script>
+
+
+                
+            </div>
+            <div id="users" class="content">
+                <h2>Users Management</h2>
+                <table class="table table-bordered">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Role</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                </table>
+
+            </div>
+            <div id="content" class="content">
+                <h2>Content Management</h2>
+                <table class="table table-bordered">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Title</th>
+                            <th>Date</th>
+                            <th>Summary</th>
+                            <th>Content</th>
+                            <th>Main Image</th>
+                            <th>Side Banner</th>
+                            <th>Navigate URL</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                </table>
+                <h3 class="mt-5">Add New Post</h3>
+                <form id="addPostForm">
+                    <div class="mb-3">
+                        <label for="title" class="form-label">Title</label>
+                        <input type="text" class="form-control" id="title" name="title" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="date" class="form-label">Date</label>
+                        <input type="date" class="form-control" id="date" name="date" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="summary" class="form-label">Summary</label>
+                        <textarea class="form-control" id="summary" name="summary" rows="3" required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="content" class="form-label">Content</label>
+                        <textarea name="content" id="contentEditor"></textarea>
+                        <script>
+                            CKEDITOR.replace('contentEditor');
+                        </script>
+                    </div>
+                    <div class="mb-3">
+                        <label for="image" class="form-label">Main Image</label>
+                        <input type="file" class="form-control" id="image" name="image" accept="image/*">
+                    </div>
+                    <div class="mb-3">
+                        <label for="side_banner" class="form-label">Side Banner Image</label>
+                        <input type="file" class="form-control" id="side_banner" name="side_banner" accept="image/*">
+                    </div>                                        
+                    <div class="mb-3">
+                        <label for="navigate_url" class="form-label">Navigate URL</label>
+                        <input type="text" class="form-control" id="navigate_url" name="navigate_url" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Add Post</button>
+                </form>
+            </div>
+            <div id="settings" the class="content">
+                <h2>Settings</h2>
+                <p>Here you can manage system settings.</p>
+            </div>
+            <div id="reports" the class="content">
+                <h2>Reports</h2>
+                <p>View and generate reports here.</p>
+            </div>
+                <div id="header-content" class="content">
+                    <h2>Update Header Content</h2>
+                    <div id="header-items">
+                    </div>
+                </div>
+
+            <div id="footer-content" class="content">
+                <h2>Update Footer Content</h2>
+                <div id="footer-items">
+                </div>
+            </div>
+
+            <div id="company-info-content" class="content">
+                <h2>Update Company Info</h2>
+                <div id="company-info-items">
+                </div>
+            </div>
+
+            
+        </div>
+    </div>
+    
+
+    <script>
+        function showSection(sectionId) {
+            const sections = document.querySelectorAll('.content');
+            sections.forEach(section => {
+                if (section.id === sectionId) {
+                    section.style.display = 'block';
+                } else {
+                    section.style.display = 'none';
+                }
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            var lang = document.getElementById('lang-select').value; // Lấy ngôn ngữ được chọn từ dropdown
+            fetchContent('dropdown_menu_top', 'header-items', lang);
+            fetchContent('dropdown_menu_down', 'footer-items', lang);
+            fetchContent('sum_info', 'company-info-items', lang);
+            loadPosts();
+        });
+
+
+        function changeLanguage() {
+            var lang = document.getElementById('lang-select').value;
+            fetchContent('dropdown_menu_top', 'header-items', lang);
+            fetchContent('dropdown_menu_down', 'footer-items', lang);
+            fetchContent('sum_info', 'company-info-items', lang);
+        }
+
+        function fetchContent(position, elementId, lang) {
+            const container = document.getElementById(elementId);
+            const url = `http://34.130.249.174:8080/get_content?pos=${position}&lang=${lang}`;
+            fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                container.innerHTML = '';
+                const table = document.createElement('table');
+                table.className = 'table';
+                table.innerHTML = `<thead><tr><th>ID HTML</th><th>Text</th><th>Actions</th></tr></thead>`;
+                const tbody = document.createElement('tbody');
+
+                data.forEach(item => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `<td>${item.id_html}</td><td><input type='text' value='${item.text}' id='text-${item.id_html}' /></td>
+                    <td><button onclick="updateContent('${item.id_html}', '${lang}')">Update</button></td>`;
+                    tbody.appendChild(row);
+                });
+
+                table.appendChild(tbody);
+                container.appendChild(table);
+            })
+            .catch(error => console.error('Error loading the content:', error));
+        }
+
+        function updateContent(id_html, lang) {
+            const textInput = document.getElementById(`text-${id_html}`);
+            const text = textInput.value;
+            const url = `http://34.130.249.174:8080/update_content`;
+            fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id_html: id_html, text: text, lang: lang })
+            })
+            .then(response => response.json())
+            .then(data => alert(data.message))
+            .catch(error => console.error('Error updating content:', error));
+        }
+
+
+
+    </script>
+
+    <script>
+        document.getElementById('addPostForm').addEventListener('submit', function(event) {
+            event.preventDefault(); // Ngăn form gửi đi ngay lập tức
+
+            // Cập nhật giá trị từ CKEditor vào textarea
+            document.getElementById('contentEditor').value = CKEDITOR.instances.contentEditor.getData();
+
+            // Kiểm tra liệu tất cả các trường bắt buộc đã được điền
+            if (!this.title.value || !this.date.value || !this.summary.value || !this.contentEditor.value || !this.navigate_url.value) {
+                alert('Please fill all required fields.');
+                return;
+            }
+
+            // Tiến hành gửi form nếu tất cả các trường bắt buộc đã được điền
+            const formData = new FormData(this);
+            const data = Object.fromEntries(formData.entries());
+            submitPost(data);
+        });
+
+        function submitPost(data) {
+            // Handle the image and side_banner conversion to base64
+            const imageFile = document.querySelector('#image').files[0];
+            const bannerFile = document.querySelector('#side_banner').files[0];
+
+            Promise.all([toBase64(imageFile), toBase64(bannerFile)]).then(values => {
+                if (imageFile) {
+                    data.image = values[0];
+                }
+                if (bannerFile) {
+                    data.side_banner = values[1];
+                }
+                fetch('http://34.130.249.174:8080/add_post', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                })
+                .then(response => response.json())
+                .then(result => {
+                    alert(result.message);
+                    document.getElementById('addPostForm').reset();
+                })
+                .catch(error => console.error('Error:', error));
+            });
+        }
+
+
+        function toBase64(file) {
+            return new Promise((resolve, reject) => {
+                const fileName = file.name.toLowerCase();
+                const validTypes = ['image/jpeg', 'image/png', 'image/gif'];
+                if (!validTypes.includes(file.type.toLowerCase())) {
+                    reject('Invalid file type. Only JPEG, PNG, and GIF are allowed.');
+                    return;
+                }
+
+                if (file.size > 5242880) { // 5 MB in bytes
+                    reject('File size exceeds the maximum limit of 5 MB.');
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = error => reject(error);
+            });
+        }
+
+        function deletePost(postId) {
+            if (confirm('Are you sure you want to delete this post?')) {
+                fetch(`http://34.130.249.174:8080/delete_post/${postId}`, {
+                    method: 'DELETE'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    alert(data.message);
+                    if (response.ok) {
+                        document.getElementById(`row-${postId}`).remove();
+                    }
+                })
+                .catch(error => console.error('Error deleting post:', error));
+            }
+        }
+
+        function loadPosts() {
+            fetch('http://34.130.249.174:8080/get_posts')
+                .then(response => response.json())
+                .then(data => {
+                    const tbody = document.querySelector('#content tbody');
+                    tbody.innerHTML = '';  // Clear existing content
+                    data.forEach(post => {
+                        const truncatedContent = post.content.length > 100 ? post.content.substring(0, 100) + '...' : post.content;
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td>${post.id}</td>
+                            <td>${post.title}</td>
+                            <td>${post.date}</td>
+                            <td>${post.summary}</td>
+                            <td>${truncatedContent}</td>
+                            <td><img src="${post.image}" alt="Main Image" style="width:100px;"></td>
+                            <td><img src="${post.side_banner}" alt="Side Banner" style="width:100px;"></td>
+                            <td>${post.navigate_url}</td>
+                            <td>
+                                <button class="btn btn-warning" onclick="editPost(${post.id})">Edit</button>
+                                <button class="btn btn-danger" onclick="deletePost(${post.id})">Delete</button>
+                            </td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                })
+                .catch(error => console.error('Error loading posts:', error));
+        }
+
+        function showMore(postId) {
+            const post = data.find(p => p.id === postId);  // Assuming 'data' is available globally or fetch again if needed
+            alert(post.content);  // Replace this with a modal or an expanded view as needed
+        }
+
+
+
+
+    </script>
+    
+       <!-- Modal for Editing Posts -->
+       <div class="modal fade" id="editPostModal" tabindex="-1" role="dialog" aria-labelledby="editPostModalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editPostModalLabel">Chỉnh Sửa Bài Viết</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form id="editPostForm">
+                        <input type="hidden" id="edit_id" name="id">
+                        <div class="mb-3">
+                            <label for="edit_title" class="form-label">Tiêu đề</label>
+                            <input type="text" class="form-control" id="edit_title" name="title" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="edit_date" class="form-label">Ngày</label>
+                            <input type="date" class="form-control" id="edit_date" name="date" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="edit_summary" class="form-label">Summary</label>
+                            <textarea class="form-control" id="edit_summary" name="summary" required></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="edit_image" class="form-label">Main Image</label>
+                            <input type="file" class="form-control" id="edit_image" name="image" accept="image/*">
+                        </div>
+                        <div class="mb-3">
+                            <label for="edit_side_banner" class="form-label">Side Banner Image</label>
+                            <input type="file" class="form-control" id="edit_side_banner" name="side_banner" accept="image/*">
+                        </div>
+                        <div class="mb-3">
+                            <label for="edit_navigate_url" class="form-label">Navigate URL</label>
+                            <input type="text" class="form-control" id="edit_navigate_url" name="navigate_url" required>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">Cập nhật</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div> 
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.1.3/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        function editPost(postId) {
+            fetch(`http://34.130.249.174:8080/get_post/${postId}`)
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('edit_id').value = data.id;
+                    document.getElementById('edit_title').value = data.title;
+                    document.getElementById('edit_date').value = data.date;
+                    document.getElementById('edit_summary').value = data.summary;
+                    document.getElementById('edit_navigate_url').value = data.navigate_url;
+                    // Đặt giá trị cho các trường ảnh nếu có
+                    if (data.image) {
+                        document.getElementById('edit_image').src = data.image;
+                    }
+                    if (data.side_banner) {
+                        document.getElementById('edit_side_banner').src = data.side_banner;
+                    }
+                    // Hiển thị modal
+                    var editModal = new bootstrap.Modal(document.getElementById('editPostModal'));
+                    editModal.show();
+                })
+                .catch(error => console.error('Error fetching post details:', error));
+        }
+
+        document.getElementById('editPostForm').addEventListener('submit', async function(event) {
+            event.preventDefault();
+            const data = Object.fromEntries(new FormData(this).entries());
+
+            // Xử lý việc tải file ảnh lên và chuyển đổi thành base64, nếu có
+            const imageFile = document.getElementById('edit_image').files[0];
+            const bannerFile = document.getElementById('edit_side_banner').files[0];
+            
+            if (imageFile) {
+                data.image = await toBase64(imageFile);
+            }
+            if (bannerFile) {
+                data.side_banner = await toBase64(bannerFile);
+            }
+
+            // Gửi dữ liệu đã cập nhật đến server
+            fetch('http://34.130.249.174:8080/update_post', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(result => {
+                alert(result.message);
+                $('#editPostModal').modal('hide'); // Ẩn modal sau khi cập nhật
+                loadPosts(); // Tải lại danh sách bài viết
+            })
+            .catch(error => console.error('Error updating post:', error));
+        });
+
+    </script>
+
+
+</body>
+</html>

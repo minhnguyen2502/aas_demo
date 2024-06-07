@@ -1,0 +1,39 @@
+<svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2.3 25">
+  <defs>
+    <style>
+        #RDots
+    {
+        stroke-dasharray: 10;
+    }
+    #BLine
+    {
+    stroke-dasharray: 1000;
+    stroke-dashoffset: 1000;
+    animation: dash 4.6s linear;
+    animation-fill-mode: forwards;
+    }
+    @keyframes dash {
+    from {
+        stroke-dashoffset: 1000;
+    }
+    to {
+        stroke-dashoffset: 0;
+    }
+    }
+      .cls-1 {
+        fill: #3c8e4c;
+      }
+
+      .cls-2 {
+        fill: #fcfcfc;
+      }
+    </style>
+  </defs>
+  <g id="BLine">
+    <rect class="cls-1" width="2.3" height="25"/>
+  </g>
+  <g id="RDots">
+    <path class="cls-2" d="M-.15,24v1h1A1,1,0,0,1-.15,24Z" transform="translate(0.15 0)"/>
+    <path class="cls-2" d="M-.15,0V23.77a1,1,0,0,1,2,0V24a1,1,0,0,1-1,1h1.3V0ZM1.93,17.82a1,1,0,0,1-1,1h0a1,1,0,0,1-1-1v-.2a1,1,0,0,1,1-1,1,1,0,0,1,1,1ZM2,11.62a1,1,0,0,1-1,1H1a1,1,0,0,1-1-1v-.2a1,1,0,1,1,2,0Zm.09-6.2a1,1,0,0,1-1,1h0a1,1,0,0,1-1-1v-.2a1,1,0,1,1,2,0Z" transform="translate(0.15 0)"/>
+  </g>
+</svg>
